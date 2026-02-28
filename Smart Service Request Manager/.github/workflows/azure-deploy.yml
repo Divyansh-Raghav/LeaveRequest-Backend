@@ -6,6 +6,12 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  AZURE_WEBAPP_NAME: your-app-name    # Replace with your Azure Web App name
+  DOTNET_VERSION: '8.0.x'
+  PROJECT_PATH: './Smart Service Request Manager'
+  PROJECT_FILE: 'Smart Service Request Manager.csproj'
+
 jobs:
   build-and-deploy:
     runs-on: windows-latest
@@ -16,18 +22,24 @@ jobs:
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
           
-      - name: Build with dotnet
-        run: dotnet build "Smart Service Request Manager/Smart Service Request Manager.csproj" --configuration Release
+      - name: Restore dependencies
+        run: dotnet restore "${{ env.PROJECT_PATH }}/${{ env.PROJECT_FILE }}"
         
-      - name: dotnet publish
-        run: dotnet publish "Smart Service Request Manager/Smart Service Request Manager.csproj" -c Release -o ${{env.DOTNET_ROOT}}/myapp
+      - name: Build with dotnet
+        run: dotnet build "${{ env.PROJECT_PATH }}/${{ env.PROJECT_FILE }}" --configuration Release --no-restore
+        
+      - name: Run tests
+        run: dotnet test "${{ env.PROJECT_PATH }}/${{ env.PROJECT_FILE }}" --configuration Release --no-build --verbosity normal
+        
+      - name: Publish
+        run: dotnet publish "${{ env.PROJECT_PATH }}/${{ env.PROJECT_FILE }}" --configuration Release --no-build --output ${{env.DOTNET_ROOT}}/myapp
         
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
-          app-name: 'your-app-name'  # Replace with your Azure Web App name
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
           slot-name: 'production'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ${{env.DOTNET_ROOT}}/myapp
